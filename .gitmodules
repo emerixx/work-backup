@@ -1,0 +1,3 @@
+[submodule "GravSim"]
+	path = GravSim
+	url = https://github.com/emerixx/N-body-problem-simulation.git
