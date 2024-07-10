@@ -4,7 +4,7 @@
 
 void drawCircle(double radius, Vector2 center, Color color, unsigned int tId,
                 int res) {
-  float z=0.5f;
+  float z = 0.5f;
   double angle;
   rlSetTexture(tId);
 
@@ -13,8 +13,8 @@ void drawCircle(double radius, Vector2 center, Color color, unsigned int tId,
 
     rlColor4ub(color.r, color.g, color.b, color.a);
     rlVertex3f(center.x, center.y, z);
-    rlVertex3f(center.x + cosf(angle) * radius,
-               center.y + sinf(angle) * radius, z);
+    rlVertex3f(center.x + cosf(angle) * radius, center.y + sinf(angle) * radius,
+               z);
     rlVertex3f(center.x + cosf((angle + 1.0f / res)) * radius,
                center.y + sinf((angle + 1.0f / res)) * radius, z);
 
@@ -24,12 +24,13 @@ void drawCircle(double radius, Vector2 center, Color color, unsigned int tId,
 }
 
 void drawGrid(int slices, float spacing, Color color) {
-  
+
   int halfSlices = slices / 2;
 
   rlBegin(RL_LINES);
   for (int i = -halfSlices; i <= halfSlices; i++) {
-    rlColor3f(color.r/255.f, color.g/255.f, color.b/255.f);
+
+    rlColor3f(color.r / 255.f, color.g / 255.f, color.b / 255.f);
 
     rlVertex3f((float)i * spacing, 0.0f, (float)-halfSlices * spacing);
     rlVertex3f((float)i * spacing, 0.0f, (float)halfSlices * spacing);

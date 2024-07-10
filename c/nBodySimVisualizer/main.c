@@ -1,145 +1,106 @@
+#include "cameraStuff.h"
 #include "drawShapes.h"
+#include "globalVariables.h"
+#include "keybinds.h"
 #include "raylib/src/raylib.h"
 #include "raylib/src/rlgl.h"
-
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-
 #include <time.h>
-
-int const circleResolution = 10;
-int const fps = 200;
-
-Image img;
-Texture2D texture_usr;
-Camera camera = {0};
-Color bgColor = BLACK;
-Color gridColor = GRAY;
-Color bodyColors[3] = {RED, GREEN, BLUE};
-
-float width = 100;
-float height = 100;
-
-float depth = 0;
-
-
-// file related stuff
-const int maxFilenameLenght = 40;
-const int maxFiles = 20;
-int nOfFiles = 0;
-int nOfLines = 0;
-int nOfBodies = 0;
-
-double currentLinef = 1;
-int currentLine;
-double drawScale = 20;
-double speed = 1;
-int isRunning = 1;
-int frame = 0;
+#include <unistd.h>
 
 void getNumberOfFilesAndLines(FILE *file[]);
 
 void readFiles(FILE *file[], double p[nOfFiles][nOfLines][2]);
 
-
 int main(void) {
-
-  SetTraceLogLevel(4); // disable info
   FILE *file[maxFiles];
+  SetTraceLogLevel(4); // disable info
+
   printf("Detecting files, please wait\n");
   getNumberOfFilesAndLines(file);
   printf("Detected %d files, each containing %d lines\n", nOfFiles, nOfLines);
-  nOfBodies=nOfFiles;
+  nOfBodies = nOfFiles;
   double position[nOfFiles][nOfLines][2];
-  
+
   printf("Reading files, please wait\n");
   readFiles(file, position);
   printf("Reading files finished\n");
   sleep(1);
-  
+
   //  set up the window
-  InitWindow(1600, 900, "");
+  InitWindow(windowWidth, windowHeight, &windowTitle);
   SetTargetFPS(fps);
 
   img = GenImageColor(32, 32, WHITE);
   texture_usr = LoadTextureFromImage(img);
   UnloadImage(img);
 
-  camera.position = (Vector3){0, 0, 100};
-  camera.target = (Vector3){0, 0, 0};
-  camera.up = (Vector3){0, 1, 0};
-  camera.fovy = 45;
-  camera.projection = CAMERA_PERSPECTIVE;
-
+  setUpCamera();
+  setUpTrajectoriesDrawing();
 
   // game loop
   while (!WindowShouldClose()) {
-    frame++;
     // drawing
     BeginDrawing();
     ClearBackground(bgColor);
     DrawFPS(0, 0);
+    if (drawTrajectories) {
+      
+      DrawTexture(trajectoriesDisplayTexture, 0, 0, WHITE);
+    }
     BeginMode3D(camera);
-    
+
     // draw an XY grid just so we know we are sane
     rlPushMatrix();
-    rlRotatef(90, 1, 0, 0); // rotate it so its not going in the Z,Y direction (depth, height) but X,Y (width, height) 
-    drawGrid(100, 10, gridColor);
+    rlRotatef(90, 1, 0, 0); // rotate it so its not going in the Z,Y direction
+                            // (depth, height) but X,Y (width, height)
+    drawGrid(1000, gridSpacing, gridColor);
     rlPopMatrix();
 
-    
-    currentLine = (int) round(currentLinef);
-    for(int i=0; i<nOfBodies; i++){
-      
-      drawCircle(1, (Vector2){position[i][currentLine][0] * drawScale, position[i][currentLine][1] * drawScale}, bodyColors[i], texture_usr.id, circleResolution);
+    currentLine = (int)round(currentLinef);
+    for (int i = 0; i < nOfBodies; i++) {
+
+      drawCircle(bodyRadius,
+                 (Vector2){position[i][currentLine][0] * drawScale.x,
+                           position[i][currentLine][1] * drawScale.y},
+                 bodyColors[i], texture_usr.id, circleResolution);
+      ImageDrawPixel(&trajectoriesImageBuffer,
+                     (int)((float)windowWidth / 2 +
+                           (position[i][currentLine][0]) * drawScale.x),
+                     (int)((float)windowHeight / 2 -
+                           (position[i][currentLine][1]) * drawScale.y),
+                     bodyColors[i]);
     }
+    UpdateTexture(trajectoriesDisplayTexture, trajectoriesImageBuffer.data);
+
     
-    
+
     EndMode3D();
 
-    EndDrawing();
-    if (speed!=0){
-      currentLinef+=speed;
-    }
-
-    if (currentLinef == nOfLines || currentLinef == 0){speed=-speed;} 
     
 
-
-    if (IsKeyPressed(KEY_SPACE)) {
-      if(isRunning==0){
-        isRunning=1;
-      }else{
-        isRunning=0;
-      }
-    }
-    if(IsKeyPressed(KEY_RIGHT)){
-      speed+=0.1;
-    }
-    if(IsKeyPressed(KEY_LEFT)){
-      speed-=0.1;
+    EndDrawing();
+    if (currentLinef + speed / 100 * isRunning >= 0) {
+      currentLinef += speed / 100 * isRunning;
+    } else {
+      currentLine = 1;
+      isRunning = 0;
     }
 
-
-
-
-
-
-    if (frame==fps){
-      frame=0;
-    }
+    // keybinding stuff
+    setAll_kb();
   }
   // cleanup
+  UnloadImage(trajectoriesImageBuffer);
   UnloadTexture(texture_usr);
+  UnloadTexture(trajectoriesDisplayTexture);
   CloseWindow();
   return 0;
 }
-
-
 
 void getNumberOfFilesAndLines(FILE *file[]) {
   char filename[maxFilenameLenght];
@@ -151,14 +112,14 @@ void getNumberOfFilesAndLines(FILE *file[]) {
 
     if (file[i] == NULL) {
 
-      //printf("No more files to open. Stopped at %d.txt\n", i);
+      // printf("No more files to open. Stopped at %d.txt\n", i);
 
       nOfFiles = i;
 
       break;
     }
 
-    //printf("Opened file: %s\n", filename);
+    // printf("Opened file: %s\n", filename);
   }
 
   char c;
@@ -196,6 +157,5 @@ void readFiles(FILE *file[], double p[nOfFiles][nOfLines][2]) {
 
       token = strtok(NULL, "\n");
     }
-
   }
 }
